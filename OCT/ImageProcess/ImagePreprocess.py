@@ -1,10 +1,12 @@
 import os
+import cv2
 from BM3D import BM3D
 from Binaryzation import Binaryzation
 from MedianFilter import MedianFilter
 from MorphologicalClosing import MorphologicalClosing
 from MorphologicalOpening import MorphologicalOpening
 from Fitting import Fitting
+from Normalization import Normalization
 
 
 def rename_image(file_dir, name):
@@ -27,16 +29,16 @@ class ImagePreprocess:
         self.path = path
         self.storepath = storepath
         self.filename = filename
-        self.function = None
-
+        self.parameter = None
 
     def ImagePreprocess(self):
-        BM3D(self.path, self.filename)
-        Binaryzation(self.storepath, self.filename)
-        MedianFilter(self.storepath, self.filename)
-        MorphologicalOpening(self.storepath, self.filename)
-        MorphologicalClosing(self.storepath, self.filename)
-        self.function = Fitting(self.storepath, self.filename)
+        # BM3D(self.path, self.filename)
+        # Binaryzation(self.storepath, self.filename)
+        # MedianFilter(self.storepath, self.filename)
+        # MorphologicalOpening(self.storepath, self.filename)
+        # MorphologicalClosing(self.storepath, self.filename)
+        self.parameter = Fitting(self.storepath, self.filename)
+        Normalization(self.parameter, self.storepath, self.filename)
 
 
 if __name__ == '__main__':
@@ -44,6 +46,10 @@ if __name__ == '__main__':
     # rename_image('../datas/train/DME', 'DME')
     # rename_image('../datas/train/DRUSEN', 'DRUSEN')
     # rename_image('../datas/train/NORMAL', 'NORMAL')
-    progress = ImagePreprocess("../datas/train/CNV/", "../datas/", "CNV-0.png")
+    e1 = cv2.getTickCount()
+    progress = ImagePreprocess("../datas/train/DRUSEN/", "../datas/", "DRUSEN-5.png")
     progress.ImagePreprocess()
-    print(progress.function)
+    print(progress.parameter)
+    e2 = cv2.getTickCount()
+    time = (e2 - e1) / cv2.getTickFrequency()  # 计算函数执行时间
+    print("The Processing time of the picture is %f s" % time)

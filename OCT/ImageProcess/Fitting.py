@@ -45,8 +45,8 @@ def CorrelationCoefficient(X, Y, function):
     size = X.size
     residual = 0
     total = 0
-    for i in range(size):
-        y = function[X[i]]
+    for i in range(0, size-1):
+        y = function(X[i])
         residual += math.pow((y - Y[i]), 2)
         total += math.pow(y, 2)
 
@@ -54,13 +54,13 @@ def CorrelationCoefficient(X, Y, function):
 
 
 def Fitting(path, filename):
-    X, Ymid, Ymin = PictureParsing("../datas/", "CNV-9.png")
+    X, Ymid, Ymin = PictureParsing(path, filename)
     # print(Ymid[0])
     # print(Ymin[0])
     parameter, function = PolynomialFitting(X[0], Ymid[0])
     if parameter[0] > 0:
-        # print(function)
-        return function
+        print(function)
+        return parameter
     else:
         parameter2, function2 = PolynomialFitting(X[0], Ymin[0])
         parameter3, function3 = LinearFitting(X[0], Ymin[0])
@@ -68,14 +68,14 @@ def Fitting(path, filename):
             c2 = CorrelationCoefficient(X[0], Ymin[0], function2)
             c3 = CorrelationCoefficient(X[0], Ymin[0], function3)
             if c2 > c3:
-                # print(function2)
-                return function2
+                print(function2)
+                return parameter2
             else:
-                # print(function3)
-                return function3
+                print(function3)
+                return parameter3
         else:
-            # print(function3)
-            return function3
+            print(function3)
+            return parameter3
 
 
 if __name__ == '__main__':
