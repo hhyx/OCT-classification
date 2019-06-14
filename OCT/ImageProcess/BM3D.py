@@ -3,6 +3,8 @@ import os
 import cv2
 import numpy
 from PIL import Image
+from numba import jit
+
 cv2.setUseOptimized(True)
 
 # Parameters initialization
@@ -28,7 +30,7 @@ Step2_Search_Window = 40
 
 Beta_Kaiser = 2.0
 
-
+@jit
 def init(img, _blk_size, _Beta_Kaiser):
     """该函数用于初始化，返回用于记录过滤后图像以及权重的数组,还有构造凯撒窗"""
     m_shape = img.shape
@@ -39,6 +41,7 @@ def init(img, _blk_size, _Beta_Kaiser):
     return m_img, m_wight, m_Kaiser
 
 
+@jit
 def Locate_blk(i, j, blk_step, block_Size, width, height):
     """ 该函数用于保证当前的blk不超出图像范围 """
     if i*blk_step+block_Size < width:
@@ -56,6 +59,7 @@ def Locate_blk(i, j, blk_step, block_Size, width, height):
     return m_blockPoint
 
 
+@jit
 def Define_SearchWindow(_noisyImg, _BlockPoint, _WindowSize, Blk_Size):
     """该函数返回一个二元组（x,y）,用以界定_Search_Window顶点坐标"""
     point_x = _BlockPoint[0]  # 当前坐标
@@ -68,12 +72,17 @@ def Define_SearchWindow(_noisyImg, _BlockPoint, _WindowSize, Blk_Size):
     RY = LY+_WindowSize                       # 右下y
 
     # 判断一下是否越界
-    if LX < 0:   LX = 0
-    elif RX > _noisyImg.shape[0]:   LX = _noisyImg.shape[0]-_WindowSize
-    if LY < 0:   LY = 0
-    elif RY > _noisyImg.shape[0]:   LY = _noisyImg.shape[0]-_WindowSize
+    if LX < 0:
+        LX = 0
+    elif RX > _noisyImg.shape[0]:
+        LX = _noisyImg.shape[0]-_WindowSize
+    if LY < 0:
+        LY = 0
+    elif RY > _noisyImg.shape[0]:
+        LY = _noisyImg.shape[0]-_WindowSize
 
     return numpy.array((LX, LY), dtype=int)
+
 
 
 def Step1_fast_match(_noisyImg, _BlockPoint):
@@ -141,6 +150,7 @@ def Step1_fast_match(_noisyImg, _BlockPoint):
     return Final_similar_blocks, blk_positions, Count
 
 
+@jit
 def Step1_3DFiltering(_similar_blocks):
     """
     *3D变换及滤波处理
@@ -177,6 +187,7 @@ def Aggregation_hardthreshold(_similar_blocks, blk_positions, m_basic_img, m_wig
         m_wight_img[point[0]:point[0]+_shape[1], point[1]:point[1]+_shape[2]] += block_wight
 
 
+@jit
 def BM3D_1st_step(_noisyImg):
     """第一步,基本去噪"""
     # 初始化一些参数：
@@ -310,6 +321,7 @@ def Step2_3DFiltering(_Similar_Bscs, _Similar_Imgs):
     return _Similar_Bscs, Wiener_wight
 
 
+@jit
 def Aggregation_Wiener(_Similar_Blks, _Wiener_wight, blk_positions, m_basic_img, m_wight_img, Count):
     """
     *对3D变换及滤波后输出的stack进行加权累加,得到初步滤波的图片
@@ -325,6 +337,7 @@ def Aggregation_Wiener(_Similar_Blks, _Wiener_wight, blk_positions, m_basic_img,
         m_wight_img[point[0]:point[0]+_shape[1], point[1]:point[1]+_shape[2]] += block_wight
 
 
+@jit
 def BM3D_2nd_step(_basicImg, _noisyImg):
     """Step 2. 最终的估计: 利用基本的估计，进行改进了的分组以及协同维纳滤波"""
     # 初始化一些参数：
@@ -353,16 +366,17 @@ def BM3D_2nd_step(_basicImg, _noisyImg):
     return Final
 
 
+@jit
 def textureSquare(imgPath):
     img = Image.open(imgPath)
-    img.save("../datas/Basic.jpg")
+    img.save("../datas/Basic.png")
 
     width, height = img.size
-    for i in range(0, width):  # 遍历所有长度的点
-        for j in range(0, height):  # 遍历所有宽度的点
-            data = (img.getpixel((i, j)))  # 打印该图片的所有点
+    for i in range(0, width):
+        for j in range(0, height):
+            data = (img.getpixel((i, j)))
             if data == 255:
-                img.putpixel((i, j), (0))  # 则这些像素点的颜色改成大红色
+                img.putpixel((i, j), (0))
     img = img.convert("L")  # 把图片强制转成RGB
 
     delta = height
@@ -375,6 +389,7 @@ def textureSquare(imgPath):
     return result
 
 
+@jit
 def BM3D(path, imgname):
     image = textureSquare(path + imgname)
     print(image.size)
@@ -385,25 +400,13 @@ def BM3D(path, imgname):
     # 使用函数 cv2.setUseOptimized() 来开启优化。
     img = cv2.imread(img_name, cv2.IMREAD_GRAYSCALE)  # 读入图像，cv2.IMREAD_GRAYSCALE:以灰度模式读入图像
     os.remove(img_name)
-    # 记录程序运行时间
-    # e1 = cv2.getTickCount()  # cv2.getTickCount 函数返回从参考点到这个函数被执行的时钟数
-    if(img is not None):
+    if img is not None:
         print("imread success")
 
     Basic_img = BM3D_1st_step(img)
-    # e2 = cv2.getTickCount()
-    # time = (e2 - e1) / cv2.getTickFrequency()  # 计算函数执行时间
-    # print("The Processing time of the First step is %f s" % time)
-    # cv2.imwrite("../datas/Mid.jpg", Basic_img)
-
     Final_img = BM3D_2nd_step(Basic_img, img)
-    # e3 = cv2.getTickCount()
-    # time = (e3 - e2) / cv2.getTickFrequency()
-    # print("The Processing time of the Second step is %f s" % time)
-    cv2.imwrite("../datas/Final.jpg", Final_img)
 
-    # time = (e3 - e1) / cv2.getTickFrequency()
-    # print("The total Processing time is %f s" % time)
+    cv2.imwrite("../datas/Final.jpg", Final_img)
 
     Final_img = Image.open("../datas/Final.jpg")
     (width, height) = Final_img.size
@@ -413,8 +416,4 @@ def BM3D(path, imgname):
 
 
 if __name__ == '__main__':
-    # BM3D("../datas/train/CNV/", "CNV-7.png")
-
-    image = textureSquare("../datas/train/CNV/CNV-8.png")
-    cv2.waitKey()
-    cv2.destroyAllWindows()
+    BM3D("../datas/train/CNV/", "CNV-7.png")
